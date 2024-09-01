@@ -1,0 +1,85 @@
+#########################
+
+Calculating the Mutual Information between genes
+mi_smart_filters.py
+Created by: Katrisa Ward (Bennion)
+Email: katrisa14@gmail.com
+
+PI: Justin Miller, PhD: justin.miller@uky.edu
+
+#########################
+
+Calculates the mutual information between positions on two differnt proteins and gives a probability of interaction based on that score.
+Uses two protein multiple sequence alignment files, each containing the same set of at least 100 different species,
+to provide a score of interaction between each residue on the two proteins. 
+A CSV file and heat map of those scores are created and/or a tsv detailing the highest score, its location, and its probability of interaction.
+
+#########################
+
+ARGUMENT OPTIONS
+
+mi_smart_filters requires 4 user inputs:
+--fasta1:			[-f1] fasta file with MSA's of the first gene. Must be a fasta file, and sequences must be aligned
+
+--fasta2:			[-f2] fasta file with MSA's of the second gene. Must be a fasta file, and sequences must be aligned
+
+--protein1			[-p1] the name of the first protein
+
+--protein2			[-p2] the name of the second protein
+
+
+Optional Arguments:
+--color 			[-c] The matplotlib color scheme of the heatmap.
+
+--dataname			[-d] The filepath to the output csv. Default name made from protein names and written to the current directory.
+
+--nodata			[-xi] Flag to not create a csv.
+
+--imagename			[-i] The filepath to the output png of the heat map. Default name made from protein names and written to the current directory.
+
+--noimage    			[-xi] Flag to not create a heatmap. 
+
+--threads			[-t] The number of threads, default all. 
+
+--noneg				[-n] Change all negative values to zero exclusively for the creation of the heatmap so that high values stand out more
+
+--minPx				[-p] Minimum percentage of the domain that a residue needs to make up to count towards the MI score.
+
+--percentAboveRandom		[-r] Minimum percentage above random that a pairing should occur to be factored into MI scores.
+
+--highestScore			[-s] Flag to record only the highest mutual information score, its position, and its chance of interaction in a tsv. Also provide the filename (e.g. -s allMaxes.tsv)
+				This option appends to a file and is intended for large analyses with several protein pairs where they can all have their results written to the same file. 
+
+--taxonomicGroup		[-g] The taxonomic group of the input files. Flag to use the best values for percentAboveRandom and minPx as determined by our research. Input b or bacteria, v or vertebrates
+
+
+#########################
+
+REQUIREMENTS
+
+mi_smart_filters.py uses python 3.7 in a Linux environment
+
+Python Libraries:
+1. matplotlib
+2. numpy
+3. math
+4. argparse
+5. traceback
+6. multiprocessing
+7. os
+8. statistics
+9. time
+
+If any of these libraries are not in your current path, use the following command:
+pip3 install --user [library_name]
+
+
+##########################
+
+USAGE EXAMPLES
+
+python mi_smart_filters.py -f1 ADA.fasta -f2 APOE.fasta -p1 ADA -p2 APOE -d APOE_ADA.csv -i proteinComp.png -c magma -p 22 -r 30 -t 14
+
+python mi_smart_filters.py -f1 ADA.fasta -f2 APOE.fasta -p1 ADA -p2 APOE -s interactingProteins.tsv -g v -xi -xd 
+
+
