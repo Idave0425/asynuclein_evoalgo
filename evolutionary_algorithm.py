@@ -3,6 +3,7 @@ import subprocess
 import tempfile
 import sys
 import os
+import csv
 
 POSSIBLE_AA = ['A', 'R', 'N', 'D', 'C', 'E', 'Q', 'G', 'H', 'I', 'L', 'K', 'M', 'F', 'P', 'S', 'T', 'W', 'Y', 'V']
 POP_SIZE = 30
@@ -13,59 +14,72 @@ def initialize_population(n, m):
   pop_i = [[random.choice(POSSIBLE_AA) for _ in range(m)] for _ in range(n)]
   return pop_i
 
-# Fitness Function - binary addition to 15
-#def calculate_specificity(individual):
-#    # INSERT_YOUR_CODE
-#
-#    def run_mi_smart_filters(individual):
-#        with tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.fasta') as temp_fasta1, \
-#             tempfile.NamedTemporaryFile(delete=False, mode='w', suffix='.fasta'):
-#            # Write the individual to both temporary fasta files
-#            fasta_content = f">individual\n{''.join(individual)}\n"
-#            temp_fasta1.write(fasta_content)
-#            temp_fasta2.write(fasta_content)
-#            temp_fasta1_path = temp_fasta1.name
-#            temp_fasta2_path = temp_fasta2.name
-#
-#        # Define the command to run mi_smart_filters.py
-#        command = [
-#            sys.executable, 'pic_specificity_algorithm/mi_smart_filters.py',
-#            '--fasta1', temp_fasta1_path,
-#            '--fasta2', temp_fasta2_path,
-#            '--dataname', 'output.csv',
-#            '--imagename', 'heatmap.png',
-#            '--protein1', 'protein1',
-#            '--protein2', 'protein2',
-#            '--modelSpecies', 'individual'
-#        ]
-#
-#        # Run the command and capture the output
-#        result = subprocess.run(command, capture_output=True, text=True)
-#
-#        # Clean up temporary files
-#        os.remove(temp_fasta1_path)
-#        os.remove(temp_fasta2_path)
-#
-#        if result.returncode != 0:
-#            print(f"Error running mi_smart_filters.py: {result.stderr}")
-#            return None
-#
-#        # Process the output CSV to extract the specificity score
-#        specificity_score = 0
-#        with open('output.csv', 'r') as csvfile:
-#            for line in csvfile:
-#                if line.startswith('individual'):
-#                    specificity_score = float(line.split(',')[2])  # Assuming the score is in the 3rd column
-#
-#        return specificity_score
+def get_likelihood_of_interaction(tsv_file_path):
+    with open(tsv_file_path, mode='r') as file:
+        reader = csv.DictReader(file, delimiter='\t')
+        
+        # Read through the file rows and capture LikelihoodOfInteraction value from the last row
+        likelihood_of_interaction = None
+        for row in reader:
+            likelihood_of_interaction = float(row['LikelihoodOfInteraction'])
+        
+        return likelihood_of_interaction
 
-#    total = run_mi_smart_filters(individual)
+def generate_mutated_fasta(original_fasta_path, mutated_sequence, output_fasta_path='mutated.fasta'):
+    try:
+        with open(original_fasta_path, 'r') as infile, open(output_fasta_path, 'w') as outfile:
+            species = None
+            sequence = ""
 
-#    return total
+            for line in infile:
+                line = line.strip()
+
+                # Check for a new species identifier
+                if line.startswith('>'):
+                    # If current species is Homo_sapiens, replace its sequence with the mutated sequence
+                    if species == ">Homo_sapiens":
+                        outfile.write(f"{species}\n")
+                        for i in range(0, len(mutated_sequence), 60):
+                            outfile.write(f"{mutated_sequence[i:i+60]}\n")
+
+                    # Write the current species and its sequence if it's not Homo_sapiens
+                    elif species:
+                        outfile.write(f"{species}\n")
+                        for i in range(0, len(sequence), 60):
+                            outfile.write(f"{sequence[i:i+60]}\n")
+
+                    # Reset for the next species
+                    species = line
+                    sequence = ""
+
+                else:
+                    if line:  # Add to sequence if the line is not empty
+                        sequence += line
+
+            # Handle the last species in the file
+            if species == ">Homo_sapiens":
+                outfile.write(f"{species}\n")
+                for i in range(0, len(mutated_sequence), 60):
+                    outfile.write(f"{mutated_sequence[i:i+60]}\n")
+            elif species:
+                outfile.write(f"{species}\n")
+                for i in range(0, len(sequence), 60):
+                    outfile.write(f"{sequence[i:i+60]}\n")
+
+        print(f"Fasta file successfully saved as {output_fasta_path}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 def calculate_specificity(individual):
-    aa_ranking = {aa: rank for rank, aa in enumerate(sorted(set(individual)), start=1)}
-    specificity_score = sum(aa_ranking[aa] for aa in individual)
+    # Generate Mutated Fasta
+    aa_sequence_str = ''.join(individual)
+    generate_mutated_fasta('/Users/achoksi/Documents/Projects/asynuclein_evoalgo/original_asyn.fasta', aa_sequence_str) 
+    # Build Pic Command
+    pic_command = "python ./pic_specificity_algorithm/mi_smart_filters.py -f1 /Users/achoksi/Documents/Projects/asynuclein_evoalgo/original_asyn.fasta -f2 /Users/achoksi/Documents/Projects/asynuclein_evoalgo/mutated.fasta -p1 SNCA -p2 SNCA_M -g v -m Homo_sapiens -s /Users/achoksi/Documents/Projects/asynuclein_evoalgo/interactingProteins.tsv"
+    ## Call Pic command
+    os.system(pic_command)
+    specificity_score = get_likelihood_of_interaction('interactingProteins.tsv')
     return specificity_score
 
 # Function to remove x individuals with lowest scores
@@ -101,10 +115,7 @@ def optimize_molecule(num_gen, pop_size, aa_len, sel_str, mut_rate):
         selected_indivuals = highestscore_selection(pop_i, pop_specificities, sel_str)
         new_generation = generate_new_individuals(selected_indivuals, POP_SIZE, mut_rate)
         pop = new_generation[:]
-    return pop_specificities, pop
+    return pop
 
 
-
-# Example usage:
-target_individual = find_target_individual(10, 5)
-print("Target Individual:", target_individual)
+optimize_molecule(2, 2, 55, 8, 5)
