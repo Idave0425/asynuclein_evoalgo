@@ -118,4 +118,4 @@ def optimize_molecule(num_gen, pop_size, aa_len, sel_str, mut_rate):
     return pop
 
 
-optimize_molecule(2, 2, 55, 8, 5)
+optimize_molecule(2, 2, 140, 1, 1)
